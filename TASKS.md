@@ -81,11 +81,17 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ## Phase 7 — Quality checks
 
-- [ ] Quality check definition tied to operation.
-- [ ] Operator UI for recording results.
-- [ ] `QualityCheckCompleted` event emitted on save.
-  - _Status:_ Domain entities are in place; UI and service deferred to the next
-    iteration.
+- [x] Quality check definition tied to operation.
+  - _Acceptance:_ Domain `QualityCheck` references `Operation`; seed data
+    attaches numeric / pass-fail / visual checks to the inspection / final
+    ops.
+- [x] Operator UI for recording results.
+  - _Acceptance:_ `/jobs/{id}/quality` lists checks grouped by operation
+    with type-appropriate input (numeric input + spec hint, pass/fail
+    buttons, visual confirm), and shows recorded results below.
+- [x] `QualityCheckCompleted` event emitted on save.
+  - _Acceptance:_ Notes carry `PASS` / `FAIL`; failures also carry
+    `ReasonCode = "QC-FAIL"`.
 
 ## Phase 8 — Connectors and plugins
 

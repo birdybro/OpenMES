@@ -5,6 +5,7 @@ using OpenMES.Application.Documents;
 using OpenMES.Application.Jobs;
 using OpenMES.Application.Materials;
 using OpenMES.Application.Production;
+using OpenMES.Application.Quality;
 using OpenMES.Application.Scanning;
 using OpenMES.Infrastructure.Persistence;
 using OpenMES.PluginAbstractions;
@@ -25,6 +26,7 @@ internal sealed class TestHarness : IDisposable
     public DocumentService Documents { get; }
     public ScanService Scans { get; }
     public MaterialIssueService Materials { get; }
+    public QualityService Quality { get; }
     public DefaultDocumentResolver Resolver { get; }
 
     public TestHarness(
@@ -57,6 +59,7 @@ internal sealed class TestHarness : IDisposable
         Materials = new MaterialIssueService(
             Data, Clock, Events,
             rules ?? Array.Empty<IMaterialValidationRule>());
+        Quality = new QualityService(Data, Clock, Events);
     }
 
     public void Dispose() => Db.Dispose();

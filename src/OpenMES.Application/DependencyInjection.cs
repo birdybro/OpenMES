@@ -5,6 +5,7 @@ using OpenMES.Application.Documents;
 using OpenMES.Application.Jobs;
 using OpenMES.Application.Materials;
 using OpenMES.Application.Production;
+using OpenMES.Application.Quality;
 using OpenMES.Application.Resources;
 using OpenMES.Application.Scanning;
 using OpenMES.PluginAbstractions;
@@ -23,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped<ScanService>();
         services.AddScoped<MaterialIssueService>();
         services.AddScoped<ProductionEventService>();
+        services.AddScoped<QualityService>();
 
         // Built-in plugin implementations. Consumers may register additional
         // ones; for resolvers/parsers each registered instance is consulted.

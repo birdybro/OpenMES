@@ -9,6 +9,19 @@ once it reaches a 1.0 release.
 ## [Unreleased]
 
 ### Added
+- Quality checks vertical slice (Phase 7):
+  - `QualityService` lists checks scoped to a job's part-revision
+    operations, lists results, and records new results. Numeric values are
+    auto-evaluated against the check's `Min` / `Max`; pass/fail checks
+    require an explicit selection; visual / text default to pass; an
+    explicit `PassOverride` always wins.
+  - Each recorded result emits a `QualityCheckCompleted` production event
+    (notes carry `PASS` / `FAIL`; failures set `ReasonCode = "QC-FAIL"`).
+  - `/jobs/{id}/quality` operator page groups checks by operation,
+    renders type-appropriate input, and shows the result history.
+  - `JobDetail` gains a "🔍 Quality" button alongside the other actions.
+  - Seed data attaches numeric / pass-fail / visual checks to the
+    inspection / final ops of BRK-100, SHF-220, and ASM-900.
 - Initial documentation: `README.md`, `TASKS.md`, `docs/architecture/overview.md`.
 - `.gitignore` for .NET / IDE / Docker artifacts.
 - .NET 10 solution with the agreed project layout:

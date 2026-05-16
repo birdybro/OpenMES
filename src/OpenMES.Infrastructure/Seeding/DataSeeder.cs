@@ -142,6 +142,20 @@ public sealed class DataSeeder
             new ResourceScheduleEntry { Resource = asm01, Job = jobs[3], PlannedStartUtc = now, PlannedEndUtc = now.AddHours(6), PlannedQuantity = 200 },
             new ResourceScheduleEntry { Resource = asm01, Job = jobs[4], PlannedStartUtc = now.AddHours(8), PlannedEndUtc = now.AddHours(20), PlannedQuantity = 20 });
 
+        // Quality checks on the inspection / final ops.
+        var brkInspect = p1r.Operations.First(o => o.OperationCode == "OP030");
+        var shfTurn = p2r.Operations.First(o => o.OperationCode == "OP010");
+        var asmFinal = p5r.Operations.First(o => o.OperationCode == "OP020");
+        var checks = new[]
+        {
+            new QualityCheck { Operation = brkInspect, Title = "Visual finish", CheckType = QualityCheckType.Visual, Required = true, Instructions = "No burrs, no tool marks, no scratches on the seating face." },
+            new QualityCheck { Operation = brkInspect, Title = "Mounting hole Ø5.0 ± 0.1", CheckType = QualityCheckType.Numeric, MinValue = 4.9m, MaxValue = 5.1m, Unit = "mm", Required = true, Instructions = "Measure with pin gage at the centre hole." },
+            new QualityCheck { Operation = shfTurn, Title = "Shaft OD Ø20.0 ± 0.05", CheckType = QualityCheckType.Numeric, MinValue = 19.95m, MaxValue = 20.05m, Unit = "mm", Required = true },
+            new QualityCheck { Operation = asmFinal, Title = "Final torque test", CheckType = QualityCheckType.PassFail, Required = true, Instructions = "Verify torque to 12 N·m + click test." },
+            new QualityCheck { Operation = asmFinal, Title = "Serial / label applied", CheckType = QualityCheckType.Visual, Required = false }
+        };
+        _db.QualityChecks.AddRange(checks);
+
         // A small starter trail of production events on the in-progress job.
         var op = jobs[0];
         _db.ProductionEvents.AddRange(
@@ -153,7 +167,7 @@ public sealed class DataSeeder
             new ProductionEvent { EventType = ProductionEventType.ScrapQuantityReported, Job = op, Resource = cnc01, Quantity = 1, ReasonCode = "DIM-OOT", TimestampUtc = now.AddMinutes(-60) });
 
         await _db.SaveChangesAsync(ct);
-        _log.LogInformation("Seed complete: {Jobs} jobs, {Docs} documents, {Lots} lots.", jobs.Length, docs.Length, lots.Length);
+        _log.LogInformation("Seed complete: {Jobs} jobs, {Docs} documents, {Lots} lots, {Checks} quality checks.", jobs.Length, docs.Length, lots.Length, checks.Length);
     }
 
     private static (Part part, PartRevision rev) MakePart(string number, string desc, string revision)

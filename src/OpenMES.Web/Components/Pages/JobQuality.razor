@@ -1,0 +1,202 @@
+@page "/jobs/{Id:int}/quality"
+@inject JobService Jobs
+@inject QualityService Quality
+
+<PageTitle>Quality — Job @(_job?.JobNumber) — OpenMES</PageTitle>
+
+@if (_job is null)
+{
+    <p><em>Loading…</em></p>
+}
+else
+{
+    <div class="d-flex align-items-start justify-content-between">
+        <div>
+            <h1 class="display-6 mb-1">Quality checks</h1>
+            <div class="text-muted">Job @_job.JobNumber · @(_job.PartRevision?.Part?.PartNumber) Rev @(_job.PartRevision?.Revision)</div>
+        </div>
+        <a class="btn btn-outline-secondary" href="@($"jobs/{_job.Id}")">← Back to job</a>
+    </div>
+
+    @if (_checks.Count == 0)
+    {
+        <div class="alert alert-info mt-3">
+            No quality checks are defined on this part revision's operations.
+        </div>
+    }
+    else
+    {
+        @foreach (var group in _checks.GroupBy(c => c.Operation))
+        {
+            <h2 class="h5 mt-4">@(group.Key?.OperationCode) — @(group.Key?.Description)</h2>
+            <div class="list-group">
+                @foreach (var c in group)
+                {
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="fw-semibold">
+                                    @c.Title
+                                    @if (c.Required) { <span class="badge bg-warning text-dark ms-2">Required</span> }
+                                    <span class="badge bg-secondary ms-1">@c.CheckType</span>
+                                </div>
+                                @if (!string.IsNullOrEmpty(c.Instructions))
+                                {
+                                    <div class="text-muted small">@c.Instructions</div>
+                                }
+                                @if (c.CheckType == QualityCheckType.Numeric)
+                                {
+                                    <div class="text-muted small">
+                                        Spec:
+                                        @(c.MinValue?.ToString() ?? "−∞") … @(c.MaxValue?.ToString() ?? "+∞")
+                                        @c.Unit
+                                    </div>
+                                }
+                            </div>
+                            <div class="ms-3 text-end" style="min-width: 320px;">
+                                @switch (c.CheckType)
+                                {
+                                    case QualityCheckType.Numeric:
+                                        <EditForm Model="this" OnValidSubmit="() => RecordNumeric(c)">
+                                            <div class="input-group">
+                                                <input type="number" step="0.001" class="form-control" placeholder="value"
+                                                       @bind="_numericInputs[c.Id]" />
+                                                @if (!string.IsNullOrEmpty(c.Unit))
+                                                {
+                                                    <span class="input-group-text">@c.Unit</span>
+                                                }
+                                                <button class="btn btn-primary" type="submit">Record</button>
+                                            </div>
+                                        </EditForm>
+                                        break;
+                                    case QualityCheckType.PassFail:
+                                        <div class="btn-group">
+                                            <button class="btn btn-success" @onclick="() => RecordPassFail(c, true)">Pass</button>
+                                            <button class="btn btn-danger" @onclick="() => RecordPassFail(c, false)">Fail</button>
+                                        </div>
+                                        break;
+                                    case QualityCheckType.Text:
+                                        <EditForm Model="this" OnValidSubmit="() => RecordText(c)">
+                                            <div class="input-group">
+                                                <input class="form-control" placeholder="text" @bind="_textInputs[c.Id]" />
+                                                <button class="btn btn-primary" type="submit">Record</button>
+                                            </div>
+                                        </EditForm>
+                                        break;
+                                    case QualityCheckType.Visual:
+                                        <button class="btn btn-success" @onclick="() => RecordVisual(c)">✓ Confirm</button>
+                                        break;
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+
+    @if (_message is not null)
+    {
+        <div class="alert mt-3 @(_messageIsError ? "alert-danger" : "alert-success")">@_message</div>
+    }
+
+    <h2 class="h5 mt-4">Recorded results</h2>
+    @if (_results.Count == 0)
+    {
+        <p class="text-muted">No quality results recorded for this job yet.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr><th>When (UTC)</th><th>Check</th><th>Value</th><th>Pass?</th><th>Notes</th></tr>
+                </thead>
+                <tbody>
+                @foreach (var r in _results)
+                {
+                    <tr>
+                        <td><code>@r.RecordedUtc.ToString("yyyy-MM-dd HH:mm:ss")</code></td>
+                        <td>@(r.QualityCheck?.Title)</td>
+                        <td>
+                            @if (r.NumericValue is decimal nv) { <span>@nv</span> }
+                            else if (!string.IsNullOrEmpty(r.TextValue)) { <span>@r.TextValue</span> }
+                            else { <span class="text-muted">—</span> }
+                        </td>
+                        <td>
+                            @if (r.Pass) { <span class="badge bg-success">PASS</span> }
+                            else { <span class="badge bg-danger">FAIL</span> }
+                        </td>
+                        <td>@r.Notes</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private Job? _job;
+    private List<QualityCheck> _checks = new();
+    private List<QualityResult> _results = new();
+    private readonly Dictionary<int, decimal?> _numericInputs = new();
+    private readonly Dictionary<int, string?> _textInputs = new();
+    private string? _message;
+    private bool _messageIsError;
+
+    protected override async Task OnInitializedAsync() => await Reload();
+
+    private async Task Reload()
+    {
+        _job = await Jobs.GetAsync(Id);
+        if (_job is null) return;
+        _checks = await Quality.ListChecksForJobAsync(Id);
+        _results = await Quality.ListResultsForJobAsync(Id);
+
+        // Bind targets must exist before the dictionary indexer is read by the
+        // form. Seed an empty entry per check.
+        foreach (var c in _checks)
+        {
+            if (!_numericInputs.ContainsKey(c.Id)) _numericInputs[c.Id] = null;
+            if (!_textInputs.ContainsKey(c.Id)) _textInputs[c.Id] = null;
+        }
+    }
+
+    private async Task RecordNumeric(QualityCheck c)
+    {
+        var v = _numericInputs.TryGetValue(c.Id, out var n) ? n : null;
+        await SubmitAsync(new QualityResultInput(c.Id, Id, NumericValue: v));
+        _numericInputs[c.Id] = null;
+    }
+
+    private async Task RecordPassFail(QualityCheck c, bool pass)
+        => await SubmitAsync(new QualityResultInput(c.Id, Id, PassOverride: pass));
+
+    private async Task RecordText(QualityCheck c)
+    {
+        var t = _textInputs.TryGetValue(c.Id, out var s) ? s : null;
+        await SubmitAsync(new QualityResultInput(c.Id, Id, TextValue: t));
+        _textInputs[c.Id] = null;
+    }
+
+    private async Task RecordVisual(QualityCheck c)
+        => await SubmitAsync(new QualityResultInput(c.Id, Id, PassOverride: true));
+
+    private async Task SubmitAsync(QualityResultInput input)
+    {
+        var r = await Quality.RecordAsync(input);
+        if (r.Success)
+        {
+            _message = $"Recorded: {(r.Result!.Pass ? "PASS" : "FAIL")}.";
+            _messageIsError = false;
+        }
+        else
+        {
+            _message = r.FailureReason;
+            _messageIsError = true;
+        }
+        await Reload();
+    }
+}
