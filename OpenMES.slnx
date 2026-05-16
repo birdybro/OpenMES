@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OpenMES.Application/OpenMES.Application.csproj" />
+    <Project Path="src/OpenMES.Domain/OpenMES.Domain.csproj" />
+    <Project Path="src/OpenMES.Infrastructure/OpenMES.Infrastructure.csproj" />
+    <Project Path="src/OpenMES.PluginAbstractions/OpenMES.PluginAbstractions.csproj" />
+    <Project Path="src/OpenMES.Web/OpenMES.Web.csproj" />
+    <Project Path="src/OpenMES.Worker/OpenMES.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OpenMES.Application.Tests/OpenMES.Application.Tests.csproj" />
+    <Project Path="tests/OpenMES.Domain.Tests/OpenMES.Domain.Tests.csproj" />
+    <Project Path="tests/OpenMES.IntegrationTests/OpenMES.IntegrationTests.csproj" />
+  </Folder>
+</Solution>
