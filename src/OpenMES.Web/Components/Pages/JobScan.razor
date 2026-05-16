@@ -1,0 +1,141 @@
+@page "/jobs/{Id:int}/scan"
+@inject JobService Jobs
+@inject ScanService Scanner
+@inject MaterialIssueService Materials
+
+<PageTitle>Scan — Job @(_job?.JobNumber) — OpenMES</PageTitle>
+
+@if (_job is null)
+{
+    <p><em>Loading…</em></p>
+}
+else
+{
+    <div class="d-flex align-items-start justify-content-between">
+        <div>
+            <h1 class="display-6 mb-1">Scan / issue material</h1>
+            <div class="text-muted">Job @_job.JobNumber · @(_job.PartRevision?.Part?.PartNumber) Rev @(_job.PartRevision?.Revision)</div>
+        </div>
+        <a class="btn btn-outline-secondary" href="@($"jobs/{_job.Id}")">← Back to job</a>
+    </div>
+
+    <div class="card mt-3">
+        <div class="card-body">
+            <label class="form-label fs-5">Scan barcode (or type and press Enter)</label>
+            <EditForm Model="this" OnValidSubmit="OnScan">
+                <div class="input-group input-group-lg">
+                    <input class="form-control" placeholder="e.g. LOT:RESIN-BLACK|QTY:50"
+                           @bind="_scan" @bind:event="oninput" autofocus />
+                    <button type="submit" class="btn btn-primary" disabled="@string.IsNullOrWhiteSpace(_scan)">Process</button>
+                </div>
+            </EditForm>
+            <div class="text-muted small mt-2">
+                Recognised prefixes: <code>JOB:</code>, <code>PART:</code>, <code>LOT:&lt;code&gt;|QTY:&lt;n&gt;</code>, <code>EMP:</code>, <code>RES:</code>, <code>OP:</code>
+            </div>
+        </div>
+    </div>
+
+    @if (_lastParsed is not null)
+    {
+        <div class="card mt-3 border-success">
+            <div class="card-body">
+                <h2 class="h5">Last scan</h2>
+                <p class="mb-1"><strong>Kind:</strong> @_lastParsed.Kind</p>
+                <p class="mb-1"><strong>Key:</strong> <code>@_lastParsed.Key</code></p>
+                @if (_lastParsed.Quantity is decimal q) { <p class="mb-1"><strong>Quantity:</strong> @q</p> }
+                @if (_lastParsed.Kind == BarcodeKind.MaterialLot)
+                {
+                    <EditForm Model="this" OnValidSubmit="OnIssue">
+                        <div class="row g-2 align-items-end mt-2">
+                            <div class="col-md-4">
+                                <label class="form-label">Quantity to issue</label>
+                                <input type="number" step="0.01" min="0" class="form-control form-control-lg" @bind="_issueQty" />
+                            </div>
+                            <div class="col-md-4">
+                                <button type="submit" class="btn btn-success btn-lg w-100" disabled="@(_issueQty <= 0)">Issue to job</button>
+                            </div>
+                        </div>
+                    </EditForm>
+                }
+            </div>
+        </div>
+    }
+    else if (_lastRaw is not null)
+    {
+        <div class="alert alert-warning mt-3">
+            Scan <code>@_lastRaw</code> was not recognised. The raw value was stored for review.
+        </div>
+    }
+
+    @if (_message is not null)
+    {
+        <div class="alert @(_messageIsError ? "alert-danger" : "alert-success") mt-3">@_message</div>
+    }
+
+    <h2 class="h5 mt-4">Issued lots</h2>
+    @if (_issues.Count == 0)
+    {
+        <p class="text-muted">No material has been issued to this job yet.</p>
+    }
+    else
+    {
+        <ul class="list-group">
+            @foreach (var i in _issues)
+            {
+                <li class="list-group-item d-flex justify-content-between">
+                    <span><code>@(i.MaterialLot?.LotCode)</code> · qty @i.Quantity</span>
+                    <span class="text-muted small">@i.IssuedUtc.ToString("yyyy-MM-dd HH:mm")</span>
+                </li>
+            }
+        </ul>
+    }
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private Job? _job;
+    private string? _scan;
+    private string? _lastRaw;
+    private ParsedBarcode? _lastParsed;
+    private decimal _issueQty;
+    private string? _message;
+    private bool _messageIsError;
+    private List<JobMaterialIssue> _issues = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _job = await Jobs.GetAsync(Id);
+        if (_job is not null) _issues = await Materials.ListForJobAsync(Id);
+    }
+
+    private async Task OnScan()
+    {
+        if (string.IsNullOrWhiteSpace(_scan)) return;
+        var raw = _scan.Trim();
+        _lastRaw = raw;
+        _message = null;
+        var result = await Scanner.ProcessAsync(raw, jobId: Id);
+        _lastParsed = result.Parsed;
+        _issueQty = result.Parsed?.Quantity ?? 0;
+        _scan = string.Empty;
+    }
+
+    private async Task OnIssue()
+    {
+        if (_lastParsed?.Kind != BarcodeKind.MaterialLot) return;
+        var r = await Materials.IssueAsync(Id, _lastParsed.Key, _issueQty);
+        if (r.Success)
+        {
+            _message = $"Issued {_issueQty} of {_lastParsed.Key} to job.";
+            _messageIsError = false;
+            _issues = await Materials.ListForJobAsync(Id);
+            _lastParsed = null;
+            _issueQty = 0;
+        }
+        else
+        {
+            _message = r.FailureReason;
+            _messageIsError = true;
+        }
+    }
+}

@@ -1,0 +1,44 @@
+@page "/admin/seed-data"
+@using OpenMES.Infrastructure.Seeding
+@inject DataSeeder Seeder
+@inject IWebHostEnvironment Env
+
+<PageTitle>Seed data — OpenMES</PageTitle>
+
+<h1 class="display-6 mb-3">Seed data</h1>
+
+@if (!Env.IsDevelopment())
+{
+    <div class="alert alert-warning">
+        Re-seeding is only enabled in <code>Development</code> environments.
+    </div>
+}
+else
+{
+    <p class="text-muted">Wipe the demo dataset and re-create it. Useful when iterating on schema changes.</p>
+    <div class="d-flex gap-2">
+        <button class="btn btn-warning btn-lg" @onclick="Seed">Seed if empty</button>
+        <button class="btn btn-danger btn-lg" @onclick="Reseed">Wipe + re-seed</button>
+    </div>
+
+    @if (_status is not null)
+    {
+        <div class="alert alert-info mt-3">@_status</div>
+    }
+}
+
+@code {
+    private string? _status;
+
+    private async Task Seed()
+    {
+        await Seeder.SeedIfEmptyAsync();
+        _status = "Seed-if-empty complete.";
+    }
+
+    private async Task Reseed()
+    {
+        await Seeder.ReseedAsync();
+        _status = "Wipe + re-seed complete.";
+    }
+}

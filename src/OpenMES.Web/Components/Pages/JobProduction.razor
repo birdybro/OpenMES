@@ -1,0 +1,131 @@
+@page "/jobs/{Id:int}/production"
+@inject JobService Jobs
+@inject ProductionEventService Events
+
+<PageTitle>Production — Job @(_job?.JobNumber) — OpenMES</PageTitle>
+
+@if (_job is null)
+{
+    <p><em>Loading…</em></p>
+}
+else
+{
+    <div class="d-flex align-items-start justify-content-between">
+        <div>
+            <h1 class="display-6 mb-1">Record production</h1>
+            <div class="text-muted">Job @_job.JobNumber · @(_job.PartRevision?.Part?.PartNumber) Rev @(_job.PartRevision?.Revision)</div>
+        </div>
+        <a class="btn btn-outline-secondary" href="@($"jobs/{_job.Id}")">← Back to job</a>
+    </div>
+
+    <div class="row mt-3 g-3">
+        <div class="col-md-4"><div class="card text-center border-success"><div class="card-body"><div class="text-muted">Good</div><div class="fs-1 text-success">@_job.QuantityGood</div></div></div></div>
+        <div class="col-md-4"><div class="card text-center border-danger"><div class="card-body"><div class="text-muted">Scrap</div><div class="fs-1 text-danger">@_job.QuantityScrap</div></div></div></div>
+        <div class="col-md-4"><div class="card text-center"><div class="card-body"><div class="text-muted">Ordered</div><div class="fs-1">@_job.QuantityOrdered</div></div></div></div>
+    </div>
+
+    <div class="row mt-4 g-3">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="h5">Report good</h2>
+                    <EditForm Model="this" OnValidSubmit="OnGood">
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text">+</span>
+                            <input type="number" step="0.01" min="0" class="form-control" @bind="_goodQty" />
+                            <button class="btn btn-success" type="submit" disabled="@(_goodQty <= 0)">Submit</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="h5">Report scrap</h2>
+                    <EditForm Model="this" OnValidSubmit="OnScrap">
+                        <div class="row g-2">
+                            <div class="col-md-5">
+                                <input type="number" step="0.01" min="0" class="form-control form-control-lg" placeholder="qty" @bind="_scrapQty" />
+                            </div>
+                            <div class="col-md-4">
+                                <input class="form-control form-control-lg" placeholder="reason code" @bind="_scrapReason" />
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-danger btn-lg w-100" type="submit" disabled="@(_scrapQty <= 0)">Submit</button>
+                            </div>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card border-warning">
+                <div class="card-body">
+                    <h2 class="h5">Downtime</h2>
+                    <EditForm Model="this" OnValidSubmit="OnDowntime">
+                        <div class="input-group input-group-lg">
+                            <input class="form-control" placeholder="reason (e.g. TOOLCHANGE)" @bind="_downReason" />
+                            <button class="btn btn-warning" type="submit" disabled="@string.IsNullOrWhiteSpace(_downReason)">Start downtime</button>
+                            <button class="btn btn-outline-secondary" type="button" @onclick="EndDowntime">End downtime</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (_message is not null)
+    {
+        <div class="alert alert-success mt-3">@_message</div>
+    }
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private Job? _job;
+    private decimal _goodQty;
+    private decimal _scrapQty;
+    private string? _scrapReason;
+    private string? _downReason;
+    private string? _message;
+
+    protected override async Task OnInitializedAsync() => await Reload();
+    private async Task Reload() => _job = await Jobs.GetAsync(Id);
+
+    private async Task OnGood()
+    {
+        await Events.ReportGoodAsync(Id, _goodQty, userId: null, resourceId: _job?.ResourceId);
+        _message = $"+{_goodQty} good recorded.";
+        _goodQty = 0;
+        await Reload();
+    }
+
+    private async Task OnScrap()
+    {
+        await Events.ReportScrapAsync(Id, _scrapQty, _scrapReason, userId: null, resourceId: _job?.ResourceId);
+        _message = $"{_scrapQty} scrap recorded ({_scrapReason}).";
+        _scrapQty = 0; _scrapReason = null;
+        await Reload();
+    }
+
+    private async Task OnDowntime()
+    {
+        if (_job?.ResourceId is int rid)
+        {
+            await Events.StartDowntimeAsync(Id, rid, _downReason ?? "Unspecified", userId: null);
+            _message = "Downtime started.";
+        }
+        _downReason = null;
+    }
+
+    private async Task EndDowntime()
+    {
+        if (_job?.ResourceId is int rid)
+        {
+            await Events.EndDowntimeAsync(Id, rid, userId: null);
+            _message = "Downtime ended.";
+        }
+    }
+}

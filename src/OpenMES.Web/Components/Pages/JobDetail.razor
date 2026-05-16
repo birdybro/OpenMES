@@ -1,0 +1,108 @@
+@page "/jobs/{Id:int}"
+@inject JobService Jobs
+@inject ProductionEventService Events
+@inject NavigationManager Nav
+
+<PageTitle>@(_job is null ? "Job" : $"Job {_job.JobNumber}") — OpenMES</PageTitle>
+
+@if (_job is null)
+{
+    <p><em>Loading…</em></p>
+}
+else
+{
+    <div class="d-flex align-items-start justify-content-between">
+        <div>
+            <h1 class="display-6 mb-1">Job @_job.JobNumber</h1>
+            <div class="text-muted">
+                @(_job.PartRevision?.Part?.PartNumber) Rev @(_job.PartRevision?.Revision) ·
+                @(_job.PartRevision?.Part?.Description)
+            </div>
+        </div>
+        <a class="btn btn-outline-secondary" href="jobs">← All jobs</a>
+    </div>
+
+    <div class="row mt-3 g-3">
+        <div class="col-md-3"><div class="card text-center"><div class="card-body"><div class="text-muted small">Status</div><div class="fs-5"><span class="badge @StatusClass(_job.Status)">@_job.Status</span></div></div></div></div>
+        <div class="col-md-3"><div class="card text-center"><div class="card-body"><div class="text-muted small">Resource</div><div class="fs-5">@(_job.Resource?.Code ?? "—")</div></div></div></div>
+        <div class="col-md-2"><div class="card text-center"><div class="card-body"><div class="text-muted small">Good</div><div class="fs-3 text-success">@_job.QuantityGood</div></div></div></div>
+        <div class="col-md-2"><div class="card text-center"><div class="card-body"><div class="text-muted small">Scrap</div><div class="fs-3 text-danger">@_job.QuantityScrap</div></div></div></div>
+        <div class="col-md-2"><div class="card text-center"><div class="card-body"><div class="text-muted small">Ordered</div><div class="fs-3">@_job.QuantityOrdered</div></div></div></div>
+    </div>
+
+    <div class="row mt-3 g-3">
+        <div class="col-md-3">
+            <a class="btn btn-primary btn-lg w-100" href="@($"jobs/{_job.Id}/documents")">📄 Documents</a>
+        </div>
+        <div class="col-md-3">
+            <a class="btn btn-primary btn-lg w-100" href="@($"jobs/{_job.Id}/scan")">📷 Scan / issue material</a>
+        </div>
+        <div class="col-md-3">
+            <a class="btn btn-primary btn-lg w-100" href="@($"jobs/{_job.Id}/production")">▶ Record production</a>
+        </div>
+        <div class="col-md-3">
+            <a class="btn btn-outline-secondary btn-lg w-100" href="@($"jobs/{_job.Id}/events")">📜 Event history</a>
+        </div>
+    </div>
+
+    <h2 class="h5 mt-4">Lifecycle</h2>
+    <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-outline-primary" disabled="@(_job.Status != JobStatus.Created)" @onclick="Release">Release</button>
+        <button class="btn btn-outline-success" disabled="@(_job.Status is JobStatus.Completed or JobStatus.Cancelled)" @onclick="Start">@(_job.Status == JobStatus.Paused ? "Resume" : "Start")</button>
+        <button class="btn btn-outline-warning" disabled="@(_job.Status != JobStatus.InProgress)" @onclick="Pause">Pause</button>
+        <button class="btn btn-outline-secondary" disabled="@(_job.Status is JobStatus.Completed or JobStatus.Cancelled)" @onclick="Complete">Mark complete</button>
+    </div>
+    @if (!string.IsNullOrEmpty(_message))
+    {
+        <div class="alert alert-info mt-3">@_message</div>
+    }
+
+    <h2 class="h5 mt-4">Operations</h2>
+    @if (_job.PartRevision?.Operations is { Count: > 0 } ops)
+    {
+        <ul class="list-group">
+            @foreach (var op in ops.OrderBy(o => o.Sequence))
+            {
+                <li class="list-group-item d-flex justify-content-between">
+                    <span><strong>@op.OperationCode</strong> · @op.Description</span>
+                    <span class="text-muted small">@op.PreferredResourceCode</span>
+                </li>
+            }
+        </ul>
+    }
+    else
+    {
+        <p class="text-muted">No operations defined for this revision.</p>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_job.Notes))
+    {
+        <h2 class="h5 mt-4">Notes</h2>
+        <pre class="bg-light p-3 rounded">@_job.Notes</pre>
+    }
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private Job? _job;
+    private string? _message;
+
+    protected override async Task OnInitializedAsync() => await Reload();
+
+    private async Task Reload() => _job = await Jobs.GetAsync(Id);
+
+    private async Task Release() { await Jobs.ReleaseAsync(Id); _message = "Job released."; await Reload(); }
+    private async Task Start()   { await Jobs.StartAsync(Id);   _message = "Job started."; await Reload(); }
+    private async Task Pause()   { await Jobs.PauseAsync(Id);   _message = "Job paused."; await Reload(); }
+    private async Task Complete(){ await Jobs.CompleteAsync(Id); _message = "Job marked complete."; await Reload(); }
+
+    private static string StatusClass(JobStatus s) => s switch
+    {
+        JobStatus.InProgress => "bg-success",
+        JobStatus.Released   => "bg-primary",
+        JobStatus.Paused     => "bg-warning text-dark",
+        JobStatus.Completed  => "bg-secondary",
+        JobStatus.Cancelled  => "bg-dark",
+        _                    => "bg-light text-dark"
+    };
+}

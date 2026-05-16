@@ -1,0 +1,56 @@
+@page "/jobs"
+@inject JobService Jobs
+
+<PageTitle>Jobs — OpenMES</PageTitle>
+
+<h1 class="display-6 mb-3">Jobs</h1>
+
+@if (_jobs is null)
+{
+    <p><em>Loading…</em></p>
+}
+else if (_jobs.Count == 0)
+{
+    <div class="alert alert-info">No jobs yet. Seed data, or pull from the ERP.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr><th>Job</th><th>Part / Rev</th><th>Resource</th><th>Status</th><th class="text-end">Good</th><th class="text-end">Scrap</th><th class="text-end">Ordered</th><th>Due</th><th></th></tr>
+            </thead>
+            <tbody>
+            @foreach (var j in _jobs)
+            {
+                <tr>
+                    <td class="fw-semibold fs-5">@j.JobNumber</td>
+                    <td>@(j.PartRevision?.Part?.PartNumber) <span class="text-muted">Rev @(j.PartRevision?.Revision)</span><br /><span class="small text-muted">@(j.PartRevision?.Part?.Description)</span></td>
+                    <td>@(j.Resource?.Code ?? "—")</td>
+                    <td><span class="badge fs-6 @StatusClass(j.Status)">@j.Status</span></td>
+                    <td class="text-end">@j.QuantityGood</td>
+                    <td class="text-end">@j.QuantityScrap</td>
+                    <td class="text-end">@j.QuantityOrdered</td>
+                    <td>@(j.DueUtc?.ToString("yyyy-MM-dd HH:mm") ?? "—")</td>
+                    <td><a class="btn btn-primary" href="@($"jobs/{j.Id}")">Open</a></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<Job>? _jobs;
+    protected override async Task OnInitializedAsync() => _jobs = await Jobs.ListAsync();
+
+    private static string StatusClass(JobStatus s) => s switch
+    {
+        JobStatus.InProgress => "bg-success",
+        JobStatus.Released   => "bg-primary",
+        JobStatus.Paused     => "bg-warning text-dark",
+        JobStatus.Completed  => "bg-secondary",
+        JobStatus.Cancelled  => "bg-dark",
+        _                    => "bg-light text-dark"
+    };
+}

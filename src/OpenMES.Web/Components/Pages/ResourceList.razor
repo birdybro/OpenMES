@@ -1,0 +1,46 @@
+@page "/resources"
+@inject ResourceService Resources
+
+<PageTitle>Resources — OpenMES</PageTitle>
+
+<h1 class="display-6 mb-3">Resources</h1>
+<p class="text-muted">Pick a machine or work centre to see what is scheduled.</p>
+
+@if (_resources is null)
+{
+    <p><em>Loading…</em></p>
+}
+else if (_resources.Count == 0)
+{
+    <div class="alert alert-warning">No active resources have been configured.</div>
+}
+else
+{
+    <div class="row g-3">
+        @foreach (var r in _resources)
+        {
+            <div class="col-md-6 col-lg-4">
+                <a class="card text-decoration-none h-100" href="@($"resources/{r.Id}")">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="fw-semibold fs-5">@r.Code</div>
+                                <div class="text-muted">@r.Name</div>
+                            </div>
+                            <span class="badge bg-secondary">@r.ResourceType</span>
+                        </div>
+                        @if (!string.IsNullOrEmpty(r.Location))
+                        {
+                            <div class="mt-2 small text-muted">📍 @r.Location</div>
+                        }
+                    </div>
+                </a>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<Resource>? _resources;
+    protected override async Task OnInitializedAsync() => _resources = await Resources.ListAsync();
+}

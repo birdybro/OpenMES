@@ -1,0 +1,60 @@
+@page "/jobs/{Id:int}/events"
+@inject JobService Jobs
+@inject ProductionEventService Events
+
+<PageTitle>Events — Job @(_job?.JobNumber) — OpenMES</PageTitle>
+
+@if (_job is null)
+{
+    <p><em>Loading…</em></p>
+}
+else
+{
+    <div class="d-flex align-items-start justify-content-between">
+        <div>
+            <h1 class="display-6 mb-1">Event history</h1>
+            <div class="text-muted">Job @_job.JobNumber · @(_job.PartRevision?.Part?.PartNumber) Rev @(_job.PartRevision?.Revision)</div>
+        </div>
+        <a class="btn btn-outline-secondary" href="@($"jobs/{_job.Id}")">← Back to job</a>
+    </div>
+
+    @if (_events.Count == 0)
+    {
+        <p class="text-muted mt-3">No events for this job yet.</p>
+    }
+    else
+    {
+        <div class="table-responsive mt-3">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr><th>When (UTC)</th><th>Type</th><th class="text-end">Qty</th><th>Reason</th><th>Notes</th><th>Raw</th></tr>
+                </thead>
+                <tbody>
+                @foreach (var e in _events)
+                {
+                    <tr>
+                        <td><code>@e.TimestampUtc.ToString("yyyy-MM-dd HH:mm:ss")</code></td>
+                        <td><span class="badge bg-secondary">@e.EventType</span></td>
+                        <td class="text-end">@(e.Quantity?.ToString() ?? "")</td>
+                        <td>@e.ReasonCode</td>
+                        <td>@e.Notes</td>
+                        <td><code class="small">@e.RawScanValue</code></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private Job? _job;
+    private List<ProductionEvent> _events = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _job = await Jobs.GetAsync(Id);
+        if (_job is not null) _events = await Events.ListForJobAsync(Id);
+    }
+}

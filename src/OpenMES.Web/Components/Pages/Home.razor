@@ -1,0 +1,94 @@
+@page "/"
+@inject JobService Jobs
+
+<PageTitle>OpenMES — Shop floor</PageTitle>
+
+<h1 class="display-6 mb-3">Shop floor</h1>
+<p class="lead text-muted">
+    Pick a resource to see what is running on it, or jump straight to a job.
+</p>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Jobs</h5>
+                <p class="card-text">Active and upcoming production orders.</p>
+                <a href="jobs" class="btn btn-primary btn-lg w-100">Open jobs</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Resources</h5>
+                <p class="card-text">Machines, work centres, and cells.</p>
+                <a href="resources" class="btn btn-primary btn-lg w-100">Open resources</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Documents</h5>
+                <p class="card-text">All work instructions / drawings / setup sheets.</p>
+                <a href="admin/documents" class="btn btn-primary btn-lg w-100">Open documents</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (_jobs is null)
+{
+    <p><em>Loading…</em></p>
+}
+else
+{
+    <h2 class="h4">Now running</h2>
+    @if (_inProgress.Count == 0)
+    {
+        <p class="text-muted">No jobs are currently in progress.</p>
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var j in _inProgress)
+            {
+                <div class="col-md-6 col-lg-4">
+                    <a class="card text-decoration-none h-100 border-success" href="@($"jobs/{j.Id}")">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="fw-semibold">Job @j.JobNumber</div>
+                                    <div class="text-muted small">
+                                        @(j.PartRevision?.Part?.PartNumber) Rev @(j.PartRevision?.Revision)
+                                    </div>
+                                </div>
+                                <span class="badge bg-success">@j.Status</span>
+                            </div>
+                            <div class="mt-3 small text-muted">
+                                @(j.Resource?.Name ?? "Unassigned")
+                            </div>
+                            <div class="mt-2">
+                                Good <strong>@j.QuantityGood</strong> /
+                                Scrap <strong>@j.QuantityScrap</strong> /
+                                Ordered <strong>@j.QuantityOrdered</strong>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    private List<Job>? _jobs;
+    private List<Job> _inProgress = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _jobs = await Jobs.ListAsync();
+        _inProgress = _jobs.Where(j => j.Status == JobStatus.InProgress).ToList();
+    }
+}

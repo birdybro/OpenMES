@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\OpenMES.Domain\OpenMES.Domain.csproj" />
+    <ProjectReference Include="..\OpenMES.Application\OpenMES.Application.csproj" />
+    <ProjectReference Include="..\OpenMES.Infrastructure\OpenMES.Infrastructure.csproj" />
+    <ProjectReference Include="..\OpenMES.PluginAbstractions\OpenMES.PluginAbstractions.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+  </PropertyGroup>
+
+</Project>

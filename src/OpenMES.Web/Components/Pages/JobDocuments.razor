@@ -1,0 +1,67 @@
+@page "/jobs/{Id:int}/documents"
+@inject JobService Jobs
+@inject DocumentService Documents
+
+<PageTitle>Documents — Job @(_job?.JobNumber) — OpenMES</PageTitle>
+
+@if (_job is null)
+{
+    <p><em>Loading…</em></p>
+}
+else
+{
+    <div class="d-flex align-items-start justify-content-between">
+        <div>
+            <h1 class="display-6 mb-1">Documents</h1>
+            <div class="text-muted">Job @_job.JobNumber · @(_job.PartRevision?.Part?.PartNumber) Rev @(_job.PartRevision?.Revision)</div>
+        </div>
+        <a class="btn btn-outline-secondary" href="@($"jobs/{_job.Id}")">← Back to job</a>
+    </div>
+
+    @if (_docs is null)
+    {
+        <p class="mt-3"><em>Resolving documents…</em></p>
+    }
+    else if (_docs.Count == 0)
+    {
+        <div class="alert alert-warning mt-3">
+            No released documents are linked to this job's part/revision yet.
+        </div>
+    }
+    else
+    {
+        <div class="list-group mt-3">
+            @foreach (var d in _docs)
+            {
+                <div class="list-group-item d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="fw-semibold fs-5">@d.Title</div>
+                        <div class="text-muted small">
+                            @d.DocumentType
+                            @if (!string.IsNullOrEmpty(d.OperationCode)) { <span> · op @d.OperationCode</span> }
+                            @if (!string.IsNullOrEmpty(d.ResourceCode)) { <span> · resource @d.ResourceCode</span> }
+                            @if (d.EffectiveDate is DateTime ed) { <span> · effective @ed:yyyy-MM-dd</span> }
+                        </div>
+                        <code class="small">@d.UrlOrPath</code>
+                    </div>
+                    <a class="btn btn-primary btn-lg" href="@d.UrlOrPath" target="_blank" rel="noopener">Open</a>
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private Job? _job;
+    private IReadOnlyList<Document>? _docs;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _job = await Jobs.GetAsync(Id);
+        if (_job is not null)
+        {
+            _docs = await Documents.GetForJobAsync(Id);
+        }
+    }
+}

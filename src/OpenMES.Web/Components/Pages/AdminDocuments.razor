@@ -1,0 +1,50 @@
+@page "/admin/documents"
+@inject DocumentService Documents
+
+<PageTitle>Documents — OpenMES</PageTitle>
+
+<h1 class="display-6 mb-3">Documents</h1>
+<p class="text-muted">Every document OpenMES knows about, with its scoping fields.</p>
+
+@if (_docs is null)
+{
+    <p><em>Loading…</em></p>
+}
+else if (_docs.Count == 0)
+{
+    <div class="alert alert-info">No documents in the database.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr><th>Title</th><th>Type</th><th>Part</th><th>Rev</th><th>Op</th><th>Resource</th><th>Status</th><th>Path / URL</th></tr>
+            </thead>
+            <tbody>
+            @foreach (var d in _docs)
+            {
+                <tr class="@(d.IsObsolete ? "text-muted" : "")">
+                    <td>@d.Title</td>
+                    <td>@d.DocumentType</td>
+                    <td>@d.PartNumber</td>
+                    <td>@d.Revision</td>
+                    <td>@d.OperationCode</td>
+                    <td>@d.ResourceCode</td>
+                    <td>
+                        @if (d.IsObsolete) { <span class="badge bg-dark">Obsolete</span> }
+                        else if (d.IsReleased) { <span class="badge bg-success">Released</span> }
+                        else { <span class="badge bg-warning text-dark">Draft</span> }
+                    </td>
+                    <td><a href="@d.UrlOrPath" target="_blank" rel="noopener"><code class="small">@d.UrlOrPath</code></a></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<Document>? _docs;
+    protected override async Task OnInitializedAsync() => _docs = await Documents.ListAllAsync();
+}
