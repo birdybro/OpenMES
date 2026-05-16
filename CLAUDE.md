@@ -1,0 +1,1 @@
+OpenMES is an operator-facing shop-floor execution portal, not an ERP replacement. Keep the domain model clean, keep production history event-based, hide ERP complexity from the UI, and prefer simple extensibility points over speculative framework design. Every meaningful change must update TASKS.md and CHANGELOG.md, build successfully, pass tests, and be committed.
