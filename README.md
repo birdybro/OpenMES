@@ -101,9 +101,76 @@ variable.
 dotnet test
 ```
 
-Unit tests cover barcode parsing, document resolution, production event creation, and
-material issue validation. Integration tests against a real database live in
+Unit tests cover barcode parsing, document resolution, production event creation,
+material issue validation, quality check evaluation, the CSV / filesystem connectors,
+and the sync services. Integration tests against a real database live in
 `tests/OpenMES.IntegrationTests` (skipped automatically when PostgreSQL is unreachable).
+
+## Deploying with Docker
+
+A multi-stage `Dockerfile` for `OpenMES.Web` and a `full` compose profile that runs
+Web + PostgreSQL together are included.
+
+```bash
+# Build + start the whole stack (Web on :8080, Postgres on :5432).
+docker compose --profile full up -d --build
+
+# Tail logs.
+docker compose --profile full logs -f web
+
+# Stop everything.
+docker compose --profile full down
+```
+
+The default `docker compose up -d` still spins up **only** Postgres, so the local
+`dotnet run` workflow keeps working unchanged.
+
+### Configuration via environment variables
+
+ASP.NET config maps `__` to `:` in env-var names. The variables OpenMES looks for:
+
+| Variable                                       | Purpose                                                        |
+|------------------------------------------------|----------------------------------------------------------------|
+| `ASPNETCORE_ENVIRONMENT`                       | `Production` (default in container) or `Development`           |
+| `ASPNETCORE_URLS`                              | Kestrel bind, e.g. `http://+:8080`                             |
+| `ConnectionStrings__OpenMes`                   | PostgreSQL connection string                                   |
+| `OpenMes__Connectors__CsvJobsPath`             | Path to the CSV the `CsvJobConnector` will read                |
+| `OpenMes__Connectors__FileSystemDocumentsRoot` | Folder the `FileSystemDocumentConnector` will walk             |
+
+The bundled compose file sets the connector paths to `/app/connectors/jobs.csv` and
+`/app/connectors/documents` and bind-mounts the sample inputs from `samples/` so the
+demo "just works." For a real deployment, replace those bind mounts with your own
+folder (or a named volume populated by the ERP / vault export).
+
+### Putting Web behind a reverse proxy (TLS)
+
+The container speaks plain HTTP on `:8080`. For anything real, terminate TLS in
+front (nginx, Caddy, Traefik) and forward to `http://openmes-web:8080`. A bare-bones
+nginx site config:
+
+```nginx
+server {
+  listen 443 ssl http2;
+  server_name openmes.plant.local;
+  ssl_certificate     /etc/ssl/openmes.crt;
+  ssl_certificate_key /etc/ssl/openmes.key;
+
+  location / {
+    proxy_pass         http://openmes-web:8080;
+    proxy_http_version 1.1;
+    proxy_set_header   Host              $host;
+    proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header   X-Forwarded-Proto $scheme;
+    # Blazor Server uses WebSockets for the interactive circuit.
+    proxy_set_header   Upgrade           $http_upgrade;
+    proxy_set_header   Connection        "upgrade";
+    proxy_read_timeout 3600;
+  }
+}
+```
+
+The image runs as the non-root `app` user. It does **not** include the EF tooling —
+migrations are applied automatically on startup by `Program.cs`.
 
 ## Contributing
 
@@ -119,6 +186,8 @@ Please open an issue describing the scenario before sending a large PR.
 
 ## Status
 
-**Early MVP.** Domain model, EF Core persistence, seed data, and the operator vertical
-slice (jobs → documents → scan → production → events) are in place. Production use is
-not yet recommended.
+**Early MVP.** Domain model, EF Core persistence, seed data, operator vertical slice
+(jobs → documents → scan → production → events → quality), reference CSV / filesystem
+connectors with a `/admin/sync` page, and a containerised deployment are in place.
+Suitable for pilots; production-hardening (real auth, observability, backups,
+secrets management) is the next round of work.

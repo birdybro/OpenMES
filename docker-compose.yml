@@ -17,5 +17,32 @@ services:
       timeout: 5s
       retries: 10
 
+  # The web service only starts when explicitly requested:
+  #   docker compose --profile full up -d --build
+  # so the default `docker compose up -d` still spins up just Postgres for
+  # local `dotnet run` development.
+  web:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openmes/web:dev
+    container_name: openmes-web
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__OpenMes: Host=postgres;Port=5432;Database=openmes;Username=openmes;Password=openmes
+      OpenMes__Connectors__CsvJobsPath: /app/connectors/jobs.csv
+      OpenMes__Connectors__FileSystemDocumentsRoot: /app/connectors/documents
+    ports:
+      - "8080:8080"
+    volumes:
+      # Bundled demo inputs — drop your real CSV / document folder in here
+      # (or rebind these mounts) for a real deployment.
+      - ./samples/external-jobs.csv:/app/connectors/jobs.csv:ro
+      - ./samples/external-documents:/app/connectors/documents:ro
+
 volumes:
   openmes-pgdata:

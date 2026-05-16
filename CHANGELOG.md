@@ -9,6 +9,21 @@ once it reaches a 1.0 release.
 ## [Unreleased]
 
 ### Added
+- Containerised deployment (Phase 9):
+  - Multi-stage `Dockerfile` for `OpenMES.Web` (SDK 10 build → aspnet 10
+    runtime on `:8080`, runs as non-root `app` user). Csproj-only
+    restore layer keeps the rebuild fast when only sources change.
+  - `.dockerignore` strips bin / obj / tests / docs / samples / .git from
+    the build context.
+  - `docker-compose.yml` gets a `full` profile that runs Web + Postgres
+    together, bind-mounts `samples/external-jobs.csv` and
+    `samples/external-documents/` into `/app/connectors/`, and wires
+    the `ConnectionStrings__OpenMes` + `OpenMes__Connectors__*` env
+    vars. The default `docker compose up -d` still brings up only
+    Postgres so the local `dotnet run` workflow is unchanged.
+  - README gains a "Deploying with Docker" section: env-var matrix,
+    bundled vs real connector inputs, and a sample nginx reverse-proxy
+    config (with the WebSocket `Upgrade` headers Blazor Server needs).
 - Reference connectors and sync (Phase 8):
   - `CsvJobConnector` (`OpenMES.Infrastructure/Connectors/`) reads jobs
     from a CSV file with header

@@ -108,9 +108,20 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ## Phase 9 — Packaging / deployment
 
-- [ ] Multi-stage `Dockerfile` for `OpenMES.Web`.
-- [ ] `docker-compose.yml` profile that runs Web + PostgreSQL together.
-- [ ] Production configuration guidance in README (env vars, reverse proxy).
+- [x] Multi-stage `Dockerfile` for `OpenMES.Web` (SDK 10 build → aspnet 10
+      runtime on :8080, runs as non-root `app` user, csproj-only restore
+      layer for cache reuse). `.dockerignore` keeps bin/obj/tests/docs/
+      samples/.git out of the build context.
+- [x] `docker-compose.yml` gains a `full` profile that runs Web +
+      PostgreSQL together with the connector paths wired to bind-mounted
+      `samples/` so the demo works out of the box. The default
+      `docker compose up -d` still spins up only Postgres for local
+      `dotnet run` development.
+- [x] Production configuration guidance in README: env var matrix
+      (`ASPNETCORE_*`, `ConnectionStrings__OpenMes`,
+      `OpenMes__Connectors__*`), bundled vs real connector folders, and
+      a sample nginx reverse-proxy config that handles the Blazor
+      Server WebSocket upgrade.
 
 ---
 
