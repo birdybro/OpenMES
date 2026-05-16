@@ -96,10 +96,14 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 ## Phase 8 — Connectors and plugins
 
 - [x] Interfaces defined (Phase 1).
-- [ ] Reference implementation of `IExternalJobConnector` against a CSV or SQL
-      sample (deferred — out of MVP scope).
-- [ ] Reference implementation of `IExternalDocumentConnector` against a
-      filesystem folder (deferred).
+- [x] Reference implementation of `IExternalJobConnector` against a CSV
+      sample (`CsvJobConnector` in `OpenMES.Infrastructure/Connectors/`).
+- [x] Reference implementation of `IExternalDocumentConnector` against a
+      filesystem folder (`FileSystemDocumentConnector`).
+- [x] `JobSyncService` + `DocumentSyncService` upsert by natural key,
+      report Fetched / Inserted / Updated / Skipped / Errors, and emit
+      `JobCreated` events for new jobs.
+- [x] `/admin/sync` page exposes both syncs with last-report summary.
 - [ ] Dynamic plugin loading (DLL discovery) — explicitly deferred.
 
 ## Phase 9 — Packaging / deployment

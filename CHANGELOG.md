@@ -9,6 +9,33 @@ once it reaches a 1.0 release.
 ## [Unreleased]
 
 ### Added
+- Reference connectors and sync (Phase 8):
+  - `CsvJobConnector` (`OpenMES.Infrastructure/Connectors/`) reads jobs
+    from a CSV file with header
+    `job_number,part_number,revision,resource_code,quantity,due_utc,notes`
+    and yields `Job` entities with natural-key navigation stubs.
+    Quoted fields (and embedded `""` quotes) are supported.
+  - `FileSystemDocumentConnector` walks a folder (top-level) and parses
+    filenames like `{part}_{rev}[_op_{opcode}]_{type}.{ext}` or
+    `resource_{code}_{type}.{ext}` into `Document` records.
+    Unrecognised filenames are silently skipped.
+  - `JobSyncService` resolves part/revision and resource via natural-key
+    lookup, upserts by `JobNumber`, skips with a reason when master
+    data is missing (no auto-create — keeps ERP master-data problems
+    visible), and emits a `JobCreated` event for new rows. The floor-
+    owned fields (status / good / scrap / started / completed) are
+    preserved on update.
+  - `DocumentSyncService` upserts documents by `UrlOrPath`.
+  - Both services return a `SyncReport` with skip reasons and error
+    messages.
+  - `/admin/sync` operator page surfaces the configured paths, runs
+    either sync on click, and shows the last report (with expandable
+    skip / error detail). New nav entry.
+  - Configurable via `OpenMes:Connectors:{CsvJobsPath,FileSystemDocumentsRoot}`
+    in `appsettings.json` (defaults point at the bundled
+    `samples/external-jobs.csv` and `samples/external-documents/`).
+  - Sample input files added under `samples/` so the demo works out of
+    the box without operator setup.
 - Quality checks vertical slice (Phase 7):
   - `QualityService` lists checks scoped to a job's part-revision
     operations, lists results, and records new results. Numeric values are

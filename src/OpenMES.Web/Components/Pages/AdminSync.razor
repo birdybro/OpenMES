@@ -1,0 +1,74 @@
+@page "/admin/sync"
+@using Microsoft.Extensions.Options
+@using OpenMES.Infrastructure.Connectors
+@inject JobSyncService JobSync
+@inject DocumentSyncService DocSync
+@inject IOptions<OpenMesConnectorOptions> ConnectorOptions
+
+<PageTitle>Sync — OpenMES</PageTitle>
+
+<h1 class="display-6 mb-3">External sync</h1>
+<p class="text-muted">
+    Run the reference connectors against their configured sources. Sync is
+    idempotent — re-running updates the same rows by natural key (job number
+    for jobs, path for documents).
+</p>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h2 class="h5">Configured paths</h2>
+        <dl class="row mb-0">
+            <dt class="col-sm-4">CsvJobsPath</dt>
+            <dd class="col-sm-8"><code>@(ConnectorOptions.Value.CsvJobsPath ?? "(not configured)")</code></dd>
+            <dt class="col-sm-4">FileSystemDocumentsRoot</dt>
+            <dd class="col-sm-8"><code>@(ConnectorOptions.Value.FileSystemDocumentsRoot ?? "(not configured)")</code></dd>
+        </dl>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h5">Jobs (CSV)</h2>
+                <button class="btn btn-primary btn-lg" @onclick="SyncJobs" disabled="@_busy">Sync jobs from CSV</button>
+                @if (_jobsReport is not null)
+                {
+                    <ReportSummary Report="_jobsReport" Title="Last job sync" />
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h5">Documents (filesystem)</h2>
+                <button class="btn btn-primary btn-lg" @onclick="SyncDocs" disabled="@_busy">Sync documents from folder</button>
+                @if (_docsReport is not null)
+                {
+                    <ReportSummary Report="_docsReport" Title="Last document sync" />
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private SyncReport? _jobsReport;
+    private SyncReport? _docsReport;
+    private bool _busy;
+
+    private async Task SyncJobs()
+    {
+        _busy = true;
+        try { _jobsReport = await JobSync.SyncAsync(); }
+        finally { _busy = false; }
+    }
+
+    private async Task SyncDocs()
+    {
+        _busy = true;
+        try { _docsReport = await DocSync.SyncAsync(); }
+        finally { _busy = false; }
+    }
+}
