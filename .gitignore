@@ -1,0 +1,47 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userprefs
+*.swp
+*.pidb
+*.lock.json
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Test / coverage
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+*.trx
+
+# Rider / VS / VS Code
+.idea/
+.vs/
+.vscode/
+*.DotSettings.user
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local config
+appsettings.Local.json
+*.local.json
+*.env
+.env
+.env.*
+!.env.example
+
+# Docker / Compose
+docker-compose.override.yml
+
+# Build outputs we never want
+*.nupkg
+*.snupkg
+
+# EF
+*.ide
