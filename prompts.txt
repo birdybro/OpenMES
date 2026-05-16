@@ -1,0 +1,316 @@
+1st prompt was:
+
+You are working in a blank Git repository named OpenMES.
+
+Project goal:
+Build OpenMES, an open-source .NET-based shop-floor execution portal for manufacturing operators, technicians, quality staff, and supervisors. This is not intended to replace an ERP system. It should sit in front of ERP/MRP/database/document systems and provide a clean operator-level interface for:
+
+- Viewing assigned and upcoming jobs
+- Opening correct work instructions, setup sheets, drawings, and quality documents
+- Scanning labels and issuing material lots to jobs
+- Recording production quantities, scrap, downtime, and quality checks
+- Showing schedules by machine/resource/work center
+- Providing extensibility points for company-specific ERP/database/document/barcode integrations
+
+Primary design principle:
+OpenMES should hide ERP complexity from operators while remaining easy for internal company developers to extend.
+
+Target stack:
+- C# / .NET 10 if available
+- ASP.NET Core
+- Blazor Web App for the UI
+- Entity Framework Core
+- PostgreSQL as the primary database
+- Docker Compose for local development
+- SignalR for future realtime updates
+- xUnit or NUnit for tests
+
+If .NET 10 is not available in the environment, use the newest installed LTS SDK and document the deviation in TASKS.md and CHANGELOG.md.
+
+Important scope boundary:
+Do not try to build a complete ERP or a full heavyweight MES immediately. Start with a clean vertical slice:
+1. Jobs
+2. Parts and revisions
+3. Resources/work centers
+4. Documents linked to part/revision/operation
+5. Operator job page
+6. Material scan/issue workflow
+7. Production event logging
+8. Audit/event history
+
+Before coding:
+1. Inspect the repository.
+2. Create a sensible initial project structure.
+3. Create TASKS.md with a detailed task list.
+4. Create CHANGELOG.md following a simple Keep-a-Changelog style.
+5. Create README.md explaining the project, goals, development setup, and early scope.
+6. Create docs/architecture/overview.md describing the intended architecture.
+7. Commit these initial documentation files before moving into implementation.
+
+Repository structure to create:
+
+OpenMES/
+  src/
+    OpenMES.Web/
+    OpenMES.Domain/
+    OpenMES.Application/
+    OpenMES.Infrastructure/
+    OpenMES.Worker/
+    OpenMES.PluginAbstractions/
+  tests/
+    OpenMES.Domain.Tests/
+    OpenMES.Application.Tests/
+    OpenMES.IntegrationTests/
+  docs/
+    architecture/
+    development/
+    plugin-development/
+  samples/
+    seed-data/
+  TASKS.md
+  CHANGELOG.md
+  README.md
+
+Architecture rules:
+- Keep domain entities in OpenMES.Domain.
+- Keep use cases/application services in OpenMES.Application.
+- Keep EF Core, database, filesystem, and external integrations in OpenMES.Infrastructure.
+- Keep Blazor UI in OpenMES.Web.
+- Keep background sync/export logic in OpenMES.Worker.
+- Keep plugin interfaces in OpenMES.PluginAbstractions.
+- Do not let the UI depend directly on ERP schemas.
+- Normalize external data into OpenMES concepts.
+- Treat production activity as event/audit records, not just mutable status fields.
+
+Initial domain concepts:
+- Job
+- Part
+- PartRevision
+- Operation
+- Resource
+- ResourceScheduleEntry
+- Document
+- DocumentLink
+- MaterialLot
+- JobMaterialIssue
+- ProductionEvent
+- QualityCheck
+- QualityResult
+- ScanEvent
+- User/Role placeholders
+
+Initial event types:
+- JobCreated
+- JobReleased
+- JobStarted
+- JobPaused
+- JobResumed
+- MaterialIssued
+- GoodQuantityReported
+- ScrapQuantityReported
+- DowntimeStarted
+- DowntimeEnded
+- QualityCheckCompleted
+- OperationCompleted
+- JobCompleted
+- DocumentOpened
+- BarcodeScanned
+
+Create plugin abstractions early, but keep them simple. Do not implement dynamic plugin loading yet. Define interfaces such as:
+
+- IBarcodeParser
+- IDocumentResolver
+- IMaterialValidationRule
+- IProductionEventSink
+- IExternalJobConnector
+- IExternalDocumentConnector
+
+The first barcode parser can be simple and built in. It should recognize example scans like:
+
+JOB:10001
+PART:ABC-123
+LOT:RESIN-BLACK|QTY:500
+EMP:12345
+
+Initial UI pages:
+- /
+- /resources
+- /resources/{id}
+- /jobs
+- /jobs/{id}
+- /jobs/{id}/documents
+- /jobs/{id}/scan
+- /jobs/{id}/production
+- /jobs/{id}/events
+- /admin/documents
+- /admin/seed-data
+
+The first UI does not need to be beautiful, but it should be clean, operator-readable, and usable on a shop-floor tablet or workstation. Prefer large buttons, clear status indicators, and minimal clutter.
+
+Database:
+- Use EF Core migrations.
+- Use PostgreSQL for normal local development through Docker Compose.
+- Add seed data so the app can be demonstrated immediately.
+- Seed at least:
+  - 3 resources/work centers
+  - 5 parts
+  - multiple part revisions
+  - several jobs
+  - sample documents linked to part/revision/operation
+  - material lots
+  - production events
+
+Document handling:
+For the MVP, support documents as records with file paths or URLs. Do not build a full document management system yet.
+
+A document should have:
+- Id
+- Title
+- DocumentType
+- PartNumber optional
+- Revision optional
+- OperationCode optional
+- ResourceCode optional
+- EffectiveDate optional
+- IsReleased
+- IsObsolete
+- UrlOrPath
+
+Document resolver behavior:
+Given a job, part revision, operation, and resource, resolve the relevant released documents and show them on the job page.
+
+Production tracking:
+Production events should be append-only records. For now, store:
+- Event id
+- Event type
+- Job id
+- Resource id optional
+- Operation id optional
+- User/operator placeholder
+- Quantity optional
+- Reason code optional
+- Notes optional
+- Timestamp UTC
+- Raw scan value optional
+
+Do not overwrite production history.
+
+Material issue workflow:
+Implement a simple workflow:
+1. Open job
+2. Go to scan page
+3. Enter or scan material lot barcode
+4. Parse barcode
+5. Validate that it looks like a material/lot scan
+6. Create MaterialIssued production event
+7. Show confirmation
+
+Testing:
+Add unit tests for:
+- Barcode parsing
+- Document resolution
+- Production event creation rules
+- Material issue validation basics
+
+Build/test discipline:
+- After each meaningful implementation step, run dotnet format if available.
+- Run dotnet build.
+- Run dotnet test.
+- Fix failures before committing.
+- Commit frequently with clear messages.
+- Do not leave the repository in a broken build state.
+
+TASKS.md requirements:
+Create a task list with sections:
+- Phase 0: Repository bootstrap
+- Phase 1: Domain model
+- Phase 2: Database and seed data
+- Phase 3: Operator UI vertical slice
+- Phase 4: Document resolver
+- Phase 5: Barcode/material issue workflow
+- Phase 6: Production event tracking
+- Phase 7: Quality checks
+- Phase 8: Connectors and plugins
+- Phase 9: Packaging/deployment
+
+Each task should have a checkbox and short acceptance criteria.
+
+CHANGELOG.md requirements:
+Use sections:
+- Unreleased
+- Added
+- Changed
+- Fixed
+- Notes
+
+Update CHANGELOG.md for every meaningful change.
+
+README.md requirements:
+Include:
+- What OpenMES is
+- What OpenMES is not
+- MVP scope
+- Architecture summary
+- Prerequisites
+- How to run locally
+- How to run tests
+- Contribution notes
+- Current project status
+
+Implementation order:
+1. Create docs and task files.
+2. Create .NET solution and projects.
+3. Wire project references.
+4. Add initial domain entities.
+5. Add application services for jobs, documents, scans, and production events.
+6. Add infrastructure with EF Core DbContext.
+7. Add Docker Compose for PostgreSQL.
+8. Add seed data.
+9. Add Blazor UI shell.
+10. Add resource/job list pages.
+11. Add job detail page.
+12. Add document list/opening page.
+13. Add scan/material issue page.
+14. Add production entry page.
+15. Add event history page.
+16. Add tests.
+17. Update TASKS.md and CHANGELOG.md.
+18. Commit.
+
+Coding style:
+- Prefer simple, readable C#.
+- Use meaningful domain names.
+- Avoid speculative abstractions.
+- Do not over-engineer the plugin system yet.
+- Do not add microservices.
+- Do not add Kubernetes.
+- Do not add complex scheduling optimization yet.
+- Keep the MVP understandable and easy for manufacturing-company developers to modify.
+
+Security:
+- Do not implement real authentication deeply in the first pass unless it is trivial.
+- Add placeholders for roles:
+  - Operator
+  - Technician
+  - Quality
+  - Supervisor
+  - Admin
+- Avoid storing secrets in the repo.
+- Use appsettings.Development.json only for local non-secret defaults.
+- Use environment variables for connection strings where possible.
+
+Local development:
+Create docker-compose.yml for PostgreSQL.
+Add a sample connection string.
+Document how to run:
+  docker compose up -d
+  dotnet restore
+  dotnet ef database update
+  dotnet run --project src/OpenMES.Web
+
+If EF tooling is needed, document the command to install it.
+
+End state for the first agent session:
+The repository should contain a compiling .NET solution with documentation, tasks, changelog, initial domain model, database context, seed data, basic Blazor UI pages, a document resolver, a basic barcode parser, production event logging, and unit tests for the core logic.
+
+Do not stop after only generating documentation. Begin implementation after the docs are created and committed.
